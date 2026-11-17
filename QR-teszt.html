@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+	<meta charset="UTF-8">
+	<title>QR Demó</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			text-align: center;
+			margin: 20px;
+		}
+
+		canvas {
+			border: 1px solid #cccccc;
+		}
+	</style>
+	<script src="QRCode.js?v=15" type="text/javascript"></script>
+</head>
+<body>
+	<h2>QR Kód Generátor</h2>
+	
+	<h3>Általános QR</h3>
+	<input id="qrInput" value="Hello World" style="width: 300px;" />
+	<select id="eccLevel">
+		<option value="L">L (Low)</option>
+		<option value="M" selected>M (Medium)</option>
+		<option value="Q">Q (Quartile)</option>
+		<option value="H">H (High)</option>
+	</select>
+	<button onclick="generateQR()">Generálás</button>
+	
+	<hr>
+	
+	<h3>🔐 TOTP/MFA Authentikátor</h3>
+	<input id="totpSecret" placeholder="BASE32 secret" value="JBSWY3DPEHPK3PXP" style="width: 200px;" /><br>
+	<input id="totpUser" placeholder="user@example.com" value="user@example.com" style="width: 200px;" /><br>
+	<input id="totpIssuer" placeholder="Szolgáltatás neve" value="MyApp" style="width: 200px;" /><br>
+	<label><input id="totpLogo" type="checkbox" /> Logo hozzáadása</label>
+	<input id="totpLogoUrl" placeholder="Logo URL" value="https://via.placeholder.com/100" style="width: 200px;" /><br>
+	<button onclick="genTOTP()">TOTP QR generálás</button>
+	
+	<hr>
+	
+	<h3>📶 WiFi Csatlakozás</h3>
+	<input id="wifiSSID" placeholder="Hálózat neve" value="MyWiFi" style="width: 200px;" /><br>
+	<input id="wifiPass" placeholder="Jelszó" value="password123" type="password" style="width: 200px;" /><br>
+	<select id="wifiType">
+		<option value="WPA">WPA/WPA2</option>
+		<option value="WEP">WEP</option>
+		<option value="nopass">Nincs jelszó</option>
+	</select>
+	<label><input id="wifiHidden" type="checkbox" /> Rejtett hálózat</label><br>
+	<label><input id="wifiShowText" type="checkbox" /> SSID megjelenítése a QR alatt</label><br>
+	<button onclick="genWiFi()">WiFi QR generálás</button>
+	
+	<hr>
+	
+	<h3>📞 Telefonhívás</h3>
+	<input id="phoneNumber" placeholder="+36301234567" value="+36301234567" style="width: 200px;" /><br>
+	<button onclick="genPhone()">Telefon QR generálás</button>
+	
+	<hr>
+	
+	<h3>👤 vCard Névjegy</h3>
+	<input id="vcardName" placeholder="Teljes név" value="Dancsó Róbert" style="width: 200px;" /><br>
+	<input id="vcardPhone" placeholder="Telefonszám" value="+36301234567" style="width: 200px;" /><br>
+	<input id="vcardEmail" placeholder="Email" value="email@example.com" style="width: 200px;" /><br>
+	<input id="vcardCompany" placeholder="Cégnév" value="Példa Kft." style="width: 200px;" /><br>
+	<button onclick="genVCard()">vCard QR generálás</button>
+	
+	<hr>
+	
+	<h3>📍 Geolokáció</h3>
+	<input id="geoLat" placeholder="Szélesség" value="47.497912" style="width: 95px;" />
+	<input id="geoLon" placeholder="Hosszúság" value="19.040235" style="width: 95px;" /><br>
+	<button onclick="genGeo()">Geolokáció QR generálás</button>
+	
+	<hr>
+	
+	<h3>📅 Naptár Esemény</h3>
+	<input id="calSummary" placeholder="Esemény neve" value="Megbeszélés" style="width: 200px;" /><br>
+	<input id="calStart" placeholder="Kezdés (YYYYMMDDTHHMMSS)" value="20251024T100000" style="width: 200px;" /><br>
+	<input id="calEnd" placeholder="Vége (YYYYMMDDTHHMMSS)" value="20251024T110000" style="width: 200px;" /><br>
+	<input id="calLocation" placeholder="Helyszín" value="Budapest" style="width: 200px;" /><br>
+	<button onclick="genCalendar()">Naptár QR generálás</button>
+	
+	<hr>
+	
+	<h3>💳 Banki Utalás (SEPA)</h3>
+	<input id="payBeneficiary" placeholder="Kedvezményezett" value="Példa Kft." style="width: 200px;" /><br>
+	<input id="payIBAN" placeholder="IBAN" value="HU12345678901234567890123456" style="width: 200px;" /><br>
+	<input id="payAmount" placeholder="Összeg" value="100.00" type="number" step="0.01" style="width: 95px;" />
+	<select id="payCurrency" style="width: 95px;">
+		<option value="EUR">EUR</option>
+		<option value="HUF" selected>HUF</option>
+		<option value="USD">USD</option>
+		<option value="GBP">GBP</option>
+	</select><br>
+	<input id="payReference" placeholder="Közlemény" value="Számla fizetés" style="width: 200px;" /><br>
+	<small style="color: #666;">⚠️ Csak EUR szabványos (EPC QR). HUF/USD nem minden bank támogatja!</small><br>
+	<button onclick="genPayment()">Utalás QR generálás</button>
+	
+	<hr>
+	
+	<canvas id="qrCanvas" width="300" height="300"></canvas>
+	<br><br>
+	<button onclick="downloadPNG()">💾 PNG letöltés</button>
+
+	<script>
+		function generateQR() {
+			const text = document.getElementById("qrInput").value;
+			const ecc = document.getElementById("eccLevel").value;
+			const result = generate(text, ecc);
+			drawQR(result.matrix, "qrCanvas");
+		}
+		
+		function genTOTP() {
+			const secret = document.getElementById("totpSecret").value;
+			const user = document.getElementById("totpUser").value;
+			const issuer = document.getElementById("totpIssuer").value;
+			const useLogo = document.getElementById("totpLogo").checked;
+			const logoUrl = document.getElementById("totpLogoUrl").value;
+			
+			// TOTP URI generálás - RÖVIDEBB formátum (issuer csak egyszer)
+			const uri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(user)}?secret=${secret}`;
+			const result = generate(uri, "L"); // Mindig L szint (legnagyobb kapacitás)
+			
+			if (useLogo && logoUrl) {
+				drawQRWithLogo(result.matrix, "qrCanvas", logoUrl, 0.15); // Kisebb logo (15% lefedettség)
+			} else {
+				drawQR(result.matrix, "qrCanvas");
+			}
+		}
+		
+		function genWiFi() {
+			const ssid = document.getElementById("wifiSSID").value;
+			const password = document.getElementById("wifiPass").value;
+			const type = document.getElementById("wifiType").value;
+			const hidden = document.getElementById("wifiHidden").checked;
+			const showText = document.getElementById("wifiShowText").checked;
+			
+			// WiFi string
+			const escape = (str) => str.replace(/([\\;,":])/g, '\\$1');
+			let wifiString = `WIFI:T:${type};S:${escape(ssid)};`;
+			if (password && type !== "nopass") {
+				wifiString += `P:${escape(password)};`;
+			}
+			wifiString += `H:${hidden};;`;
+			
+			const result = generate(wifiString, "L");
+			
+			if (showText) {
+				drawQRWithText(result.matrix, "qrCanvas", ssid, {
+					fontSize: 16,
+					fontFamily: 'Arial, sans-serif',
+					textColor: '#333333'
+				});
+			} else {
+				drawQR(result.matrix, "qrCanvas");
+			}
+		}
+		
+		function genPhone() {
+			const phoneNumber = document.getElementById("phoneNumber").value;
+			generatePhone(phoneNumber);
+		}
+		
+		function genVCard() {
+			const name = document.getElementById("vcardName").value;
+			const phone = document.getElementById("vcardPhone").value;
+			const email = document.getElementById("vcardEmail").value;
+			const company = document.getElementById("vcardCompany").value;
+			generateVCard(name, phone, email, company);
+		}
+		
+		function genGeo() {
+			const lat = parseFloat(document.getElementById("geoLat").value);
+			const lon = parseFloat(document.getElementById("geoLon").value);
+			generateGeo(lat, lon);
+		}
+		
+		function genCalendar() {
+			const summary = document.getElementById("calSummary").value;
+			const start = document.getElementById("calStart").value;
+			const end = document.getElementById("calEnd").value;
+			const location = document.getElementById("calLocation").value;
+			generateCalendar(summary, start, end, location);
+		}
+		
+		function genPayment() {
+			const beneficiary = document.getElementById("payBeneficiary").value;
+			const iban = document.getElementById("payIBAN").value;
+			const amount = parseFloat(document.getElementById("payAmount").value);
+			const currency = document.getElementById("payCurrency").value;
+			const reference = document.getElementById("payReference").value;
+			generatePayment(beneficiary, iban, amount, reference, currency);
+		}
+	</script>
+</body>
+</html>
